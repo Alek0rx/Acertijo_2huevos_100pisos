@@ -135,35 +135,39 @@ class UIManager {
    async animateDrop(step) {
       const speed = Number(this.#el.speed.value), m = this.#el.marker;
       const bottomOf = f => `${STREET_H + (f - .5) * FLOOR_H}px`;
-      if (m.style.display !== 'block') {                  // primera aparición: arranca desde la calle
+      const climb = 600 / speed, fall = 500 / speed;      
+
+      if (m.style.display !== 'block') {                  
          m.classList.remove('falling'); m.style.transition = 'none';
          m.style.display = 'block'; m.style.bottom = `${STREET_H}px`; void m.offsetHeight; m.style.transition = '';
       }
       m.classList.remove('falling');
+      m.style.transitionDuration = `${climb}ms`;          
       this.#el.mlabel.textContent = `← ${step.currentFloor}`;
       m.style.bottom = bottomOf(step.currentFloor);
-      await sleep(700 / speed);
+      await sleep(climb + 100 / speed);                   
 
       const row = this.#floorEls[step.currentFloor - 1];
       if (step.isBroken) {
          row.classList.add('broken');
-         m.classList.add('falling'); m.style.bottom = `${STREET_H}px`;
-         await sleep(520 / speed);
+         m.classList.add('falling');
+         m.style.transitionDuration = `${fall}ms`;
+         m.style.bottom = `${STREET_H}px`;
+         await sleep(fall + 20 / speed);
          const s = document.createElement('div'); s.className = 'splat';
          s.style.left = `${190 + this.#splats++ * 40}px`; this.#el.splats.appendChild(s);
          this.#el.eggs.children[step.eggNumber - 1]?.classList.add('broken');
          this.#el.mlabel.textContent = '';
          await sleep(450 / speed);
-      } else {
-         for (let i = 0; i < step.currentFloor; i++)       // todo piso por debajo de uno seguro también es seguro
+      }
+      else {
+         for (let i = 0; i < step.currentFloor; i++)       
             if (!this.#floorEls[i].classList.contains('broken')) this.#floorEls[i].classList.add('safe');
          await sleep(350 / speed);
       }
    }
-
    showResult(text) { this.#el.result.textContent = text; this.#el.result.classList.add('show'); }
 }
-
 /* GameManager — controlador
  * Máquina de estados sencilla: solo se puede iniciar un modo desde
  * IDLE o INTERACTIVE_WAITING; mientras corre el algoritmo, los botones se bloquean.
