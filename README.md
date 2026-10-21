@@ -147,7 +147,8 @@ porque `node --test` ejecuta todo lo que hay dentro de esa carpeta.
 │   ├── game.test.js
 │   └── html.test.js
 └── diagramas/
-    ├── diagrama_clases.puml
+    ├── diagrama_clases.puml              # fuente del diagrama de clases
+    ├── diagrama_clases.png               # diagrama de clase renderizado
     ├── diagrama_secuencia.puml           # fuente de los 5 diagramas de secuencia
     └── diagrama_secuencia_*.png          # los mismos diagramas ya renderizados
 ```
