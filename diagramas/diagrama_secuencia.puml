@@ -1,0 +1,212 @@
+@startuml diagrama_secuencia
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 230
+skinparam sequenceArrowThickness 1.2
+skinparam noteFontSize 11
+
+actor Usuario
+participant "script.js\n(punto de entrada)" as Main #F2F2F2
+participant "UIManager\n(Vista)" as UI #E3EEFB
+participant "GameManager\n(Controlador)" as GM #FFF1D6
+participant "EggDropPuzzle\n(Modelo)" as P #E4F4E8
+participant "SimulationEngine\n(Modelo)" as E #E4F4E8
+
+title Dos huevos, cien pisos: diagrama de secuencia (1/5)\nArranque de la aplicación
+autonumber 1
+
+Usuario -> Main : abre huevos-100-pisos.html\n(el navegador carga script.js como módulo ES)
+create UI
+Main -> UI : new UIManager()
+activate UI
+UI -> UI : buildScene()\n(estrellas, ciudad, 100 pisos con ventanas, marcas de altura, 2 huevos, tráfico)
+UI -> UI : wireEvents()\n(botones, campo numérico, clic en los pisos)
+UI --> Main
+deactivate UI
+
+create GM
+Main -> GM : new GameManager(ui)
+activate GM
+GM -> UI : bind({ onSimulation, onInteractive, onConfirm })
+note right of UI
+  La vista no conoce al controlador:
+  solo guarda estos callbacks.
+end note
+create P
+GM -> P : new EggDropPuzzle(1)\n(instancia temporal solo para leer el intervalo)
+GM -> P : calculateOptimalStrategyInterval()
+P --> GM : 14
+GM -> UI : renderStats({ mode: '—', eggs: 2, drops: 0, interval: 14 })
+GM --> Main
+deactivate GM
+note over GM : estado = IDLE
+
+newpage Dos huevos, cien pisos: diagrama de secuencia (2/5)\nModo simulación
+autonumber 1
+
+Usuario -> UI : clic en «Simulación» (btnSim)
+UI -> GM : onSimulation()
+activate GM
+GM -> GM : startSimulationMode()
+alt canStart() = false\n(estado SIMULATION_RUNNING o INTERACTIVE_RUNNING)
+   GM --> UI : se ignora la acción
+else estado IDLE o INTERACTIVE_WAITING
+   GM -> GM : breakingFloor = entero aleatorio entre 1 y 100\nmodeName = 'Simulación'
+   GM -> UI : showInteractiveInput(false)
+   GM -> GM : prepare(breakingFloor)
+   activate GM #FFE6A8
+   create P
+   GM -> P : new EggDropPuzzle(breakingFloor)
+   create E
+   GM -> E : new SimulationEngine()
+   GM -> P : totalEggs
+   P --> GM : 2
+   GM -> UI : resetScene()
+   GM -> P : calculateOptimalStrategyInterval()
+   P --> GM : 14
+   GM -> UI : renderStats({ mode: 'Simulación', eggs: 2, drops: 0,\ninterval: 14, target: '?' })
+   deactivate GM
+   note over GM : estado = SIMULATION_RUNNING
+   GM -> GM : run()  «asíncrono: no se espera»
+   ref over GM, UI, P, E : Ejecución del algoritmo\n(ver diagrama 4/5)
+end
+deactivate GM
+
+newpage Dos huevos, cien pisos: diagrama de secuencia (3/5)\nModo interactivo
+autonumber 1
+
+Usuario -> UI : clic en «Interactivo» (btnInt)
+UI -> GM : onInteractive()
+activate GM
+GM -> GM : openInteractive()
+alt canStart() = false
+   GM --> UI : se ignora la acción
+else estado IDLE o INTERACTIVE_WAITING
+   note over GM : estado = INTERACTIVE_WAITING\nmodeName = 'Interactivo'
+   GM -> UI : resetScene()
+   GM -> UI : renderStats({ mode: 'Interactivo', eggs: 2, drops: 0 })
+   GM -> UI : log('Elige el piso donde el huevo empieza a romperse...')
+   GM -> UI : showInteractiveInput(true)
+   UI --> Usuario : muestra el campo numérico,\nenfoca el campo y permite hacer clic en los pisos
+end
+deactivate GM
+
+loop el usuario puede elegir el piso las veces que quiera
+   alt escribe un número en el campo
+      Usuario -> UI : escribe en floorInput (evento oninput)
+      UI -> UI : highlightPick(n)\n(resalta el piso n si es un entero de 1 a 100)
+   else hace clic en un piso del edificio
+      Usuario -> UI : clic en el piso n
+      note right of UI : solo actúa si la torre tiene la clase «selectable»
+      UI -> UI : selectFloor(n)\n(rellena el campo y llama a highlightPick(n))
+   end
+end
+
+Usuario -> UI : clic en «Iniciar algoritmo» (btnGo)
+UI -> GM : onConfirm(Number(floorInput.value))
+activate GM
+GM -> GM : startInteractiveMode(userSelectedFloor)
+alt estado distinto de INTERACTIVE_WAITING
+   GM --> UI : se ignora la acción
+else piso inválido\n(no es entero o está fuera de 1–100)
+   GM -> UI : log('Escribe un número entero entre 1 y 100.', 'error')
+   note over GM : el estado sigue en INTERACTIVE_WAITING:\nel usuario puede corregir el valor
+else piso válido
+   GM -> GM : prepare(userSelectedFloor)\n(crea EggDropPuzzle y SimulationEngine,\nresetScene() y renderStats() con target = piso elegido)
+   note over GM : estado = INTERACTIVE_RUNNING
+   GM -> GM : run()  «asíncrono: no se espera»
+   ref over GM, UI, P, E : Ejecución del algoritmo\n(ver diagrama 4/5)
+end
+deactivate GM
+
+newpage Dos huevos, cien pisos: diagrama de secuencia (4/5)\nEjecución del algoritmo óptimo (run)
+autonumber 1
+
+activate GM
+GM -> UI : setBusy(true)\n(deshabilita botones y campo numérico)
+GM -> UI : showInteractiveInput(false)
+GM -> E : runOptimalAlgorithm(puzzle, step => onDrop(step))
+activate E
+E -> P : totalFloors
+P --> E : 100
+E -> P : calculateOptimalStrategyInterval()
+P --> E : 14
+
+== Fase 1: el huevo 1 sube con saltos decrecientes (14, +13, +12, +11, ...) ==
+loop hasta que el huevo 1 se rompa
+   E -> E : floor = min(floor + interval, totalFloors)
+   E -> P : testDrop(floor)
+   P --> E : isBroken
+   E -> GM : onDropCallback({ currentFloor: floor, eggNumber: 1,\nisBroken, dropsCount })
+   activate GM #FFE6A8
+   ref over GM, UI : onDrop(step): animar, actualizar estadísticas y registrar el lanzamiento\n(ver diagrama 5/5)
+   GM --> E : Promise resuelta (el motor hace «await»)
+   deactivate GM
+   alt isBroken
+      E -> E : brokeAt = floor
+   else floor >= totalFloors  «caso defensivo: el huevo nunca se rompe»
+      E --> GM : { breakingFloor: null, drops }
+   else el huevo 1 resiste
+      E -> E : lastSafe = floor\ninterval = max(interval - 1, 1)
+   end
+end
+
+== Fase 2: el huevo 2 busca linealmente entre lastSafe y brokeAt ==
+loop f = lastSafe + 1 ... brokeAt - 1
+   E -> P : testDrop(f)
+   P --> E : isBroken
+   E -> GM : onDropCallback({ currentFloor: f, eggNumber: 2,\nisBroken, dropsCount })
+   activate GM #FFE6A8
+   ref over GM, UI : onDrop(step)\n(ver diagrama 5/5)
+   GM --> E : Promise resuelta
+   deactivate GM
+   break isBroken
+      E --> GM : { breakingFloor: f, drops }
+   end
+end
+E --> GM : { breakingFloor: brokeAt, drops }\n«solo si el huevo 2 resistió todo el tramo»
+deactivate E
+
+== Fin de la partida ==
+GM -> UI : showResult("El huevo se rompe desde el piso X. Lanzamientos usados: N")
+note over GM : estado = IDLE
+GM -> UI : setBusy(false)
+GM -> P : getBreakingFloor()
+P --> GM : piso de rotura
+GM -> UI : renderStats({ mode, eggs, drops, target })
+deactivate GM
+
+newpage Dos huevos, cien pisos: diagrama de secuencia (5/5)\nProcesamiento de cada lanzamiento (onDrop / animateDrop)
+autonumber 1
+
+E -> GM : onDropCallback(step)\nstep = { currentFloor, eggNumber, isBroken, dropsCount }
+activate GM
+GM -> GM : onDrop(step)
+GM -> UI : animateDrop(step)
+activate UI
+UI -> UI : si es la primera aparición, coloca el marcador del huevo en la calle
+UI -> UI : mueve el marcador hasta currentFloor\ny actualiza la etiqueta «← piso»
+UI -> UI : await sleep(700 / velocidad)
+alt step.isBroken
+   UI -> UI : marca el piso con la clase «broken»
+   UI -> UI : el marcador cae a la calle (clase «falling»)
+   UI -> UI : await sleep(520 / velocidad)
+   UI -> UI : crea la mancha (splat) en la calle
+   UI -> UI : marca como «broken» el huevo número eggNumber del HUD
+   UI -> UI : await sleep(450 / velocidad)
+else el huevo resiste
+   UI -> UI : marca como «safe» los pisos 1 ... currentFloor\n(salvo los que ya están rotos)
+   UI -> UI : await sleep(350 / velocidad)
+end
+UI --> GM : Promise resuelta
+deactivate UI
+GM -> GM : drops = step.dropsCount
+opt step.isBroken
+   GM -> GM : eggs = eggs - 1
+end
+GM -> UI : renderStats({ mode, eggs, drops })
+GM -> UI : log("Lanzamiento n: huevo k desde el piso f → se rompe / resiste",\n'broken' o 'safe')
+GM --> E : Promise resuelta\n(el motor continúa con el siguiente lanzamiento)
+deactivate GM
+@enduml

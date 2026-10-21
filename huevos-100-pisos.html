@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dos huevos, cien pisos</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+  <section class="scene" id="scene" aria-label="Edificio de 100 pisos">
+    <div id="stars"></div>
+    <div class="moon"></div>
+    <div class="hud" id="eggs" aria-label="Huevos disponibles"></div>
+    <div class="skyline" id="skyline"></div>
+    <div class="lamp" style="left:-2px"></div><div class="lamp" style="left:290px"></div>
+    <div class="tower" id="tower"><div class="floors" id="floors"></div></div>
+    <div id="ticks"></div>
+    <div class="rail"></div>
+    <div class="marker" id="marker"><span class="mlabel" id="mlabel"></span></div>
+    <div class="street"><div class="lane"></div></div>
+    <div id="splats"></div>
+  </section>
+
+  <aside class="panel">
+    <h1>Dos huevos, cien pisos</h1>
+    <p class="lede">Encuentra el piso más bajo desde el que se rompe el huevo, con el menor número de lanzamientos en el peor caso.</p>
+
+    <div class="card modes">
+      <button class="primary" id="btnSim">Simulación</button>
+      <button id="btnInt">Interactivo</button>
+    </div>
+
+    <div class="card interactive" id="interactiveBox">
+      <div>
+        <label for="floorInput">Piso donde el huevo empieza a romperse (1–100)</label>
+        <input type="number" id="floorInput" min="1" max="100" placeholder="62">
+      </div>
+      <button class="primary" id="btnGo">Iniciar algoritmo</button>
+      <p class="hint">También puedes hacer clic en un piso del edificio para elegirlo.</p>
+    </div>
+
+    <div class="card stats" aria-live="polite">
+      <div class="stat"><b id="statMode">—</b><span>Modo actual</span></div>
+      <div class="stat"><b id="statEggs">2</b><span>Huevos restantes</span></div>
+      <div class="stat"><b id="statDrops">0</b><span>Lanzamientos</span></div>
+      <div class="stat"><b id="statInterval">14</b><span>Primer intervalo óptimo</span></div>
+      <div class="stat"><b id="statTarget">?</b><span>Piso de rotura</span></div>
+    </div>
+
+    <div class="card">
+      <label for="speed">Velocidad de animación</label>
+      <input type="range" id="speed" min="0.5" max="4" step="0.5" value="1">
+    </div>
+
+    <div class="card result" id="result" role="status"></div>
+    <div class="card"><ul class="log" id="log" aria-live="polite"><li>Elige un modo para empezar.</li></ul></div>
+  </aside>
+</main>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>

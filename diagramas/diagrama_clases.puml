@@ -1,0 +1,103 @@
+@startuml Diagrama de Clases
+title Dos huevos, cien pisos: diagrama de clases
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+hide empty members
+
+enum GameState <<GameManager.STATES>> {
+  IDLE
+  SIMULATION_RUNNING
+  INTERACTIVE_WAITING
+  INTERACTIVE_RUNNING
+}
+
+class DropStep <<objeto literal>> {
+  +currentFloor : int
+  +eggNumber : int
+  +isBroken : boolean
+  +dropsCount : int
+}
+
+class DropResult <<objeto literal>> {
+  +breakingFloor : int | null
+  +drops : int
+}
+
+' ---------- MODELO ----------
+class EggDropPuzzle {
+  -totalFloors : int = 100
+  -totalEggs : int = 2
+  -breakingFloor : int
+  --
+  +EggDropPuzzle(breakingFloor : int)
+  +totalFloors : int {readOnly}
+  +totalEggs : int {readOnly}
+  +calculateOptimalStrategyInterval() : int
+  +getBreakingFloor() : int
+  +testDrop(floor : int) : boolean
+}
+
+class SimulationEngine {
+  +runOptimalAlgorithm(puzzle : EggDropPuzzle,\n  onDropCallback : Function) : Promise<DropResult>
+}
+
+' ---------- CONTROLADOR ----------
+class GameManager {
+  {static} +STATES : GameState
+  -state : GameState
+  -ui : UIManager
+  -puzzle : EggDropPuzzle
+  -engine : SimulationEngine
+  -eggs : int
+  -drops : int
+  -modeName : String
+  --
+  +GameManager(ui : UIManager)
+  +startSimulationMode() : void
+  +startInteractiveMode(userSelectedFloor : int) : void
+  -openInteractive() : void
+  -canStart() : boolean
+  -prepare(breakingFloor : int) : void
+  -run() : Promise<void>
+  -onDrop(step : DropStep) : Promise<void>
+}
+
+' ---------- VISTA ----------
+class UIManager {
+  -el : Map<String, HTMLElement>
+  -floorEls : HTMLElement[]
+  -handlers : Object
+  -splats : int
+  --
+  +UIManager()
+  +bind(handlers : Object) : void
+  +selectFloor(n : int) : void
+  +showInteractiveInput(show : boolean) : void
+  +setBusy(busy : boolean) : void
+  +resetScene() : void
+  +renderStats(stats : Object) : void
+  +log(text : String, kind : String) : void
+  +animateDrop(step : DropStep) : Promise<void>
+  +showResult(text : String) : void
+  -buildScene() : void
+  -renderEggs(count : int) : void
+  -wireEvents() : void
+  -highlightPick(n : int) : void
+}
+
+' ---------- RELACIONES ----------
+GameManager "1" --> "1" UIManager : actualiza
+GameManager "1" *-- "0..1" EggDropPuzzle : crea
+GameManager "1" *-- "0..1" SimulationEngine : crea
+GameManager --> GameState : estado actual
+
+SimulationEngine ..> EggDropPuzzle : lanza huevos
+SimulationEngine ..> DropStep : emite
+SimulationEngine ..> DropResult : devuelve
+
+GameManager ..> DropStep : recibe
+UIManager ..> DropStep : anima
+UIManager ..> GameManager : avisa eventos
+
+@enduml
